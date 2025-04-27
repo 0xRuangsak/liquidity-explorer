@@ -6,7 +6,7 @@ use ethers::{
     contract::abigen,
 };
 use std::str::FromStr;
-use std::sync::Arc;  // Add this import
+use std::sync::Arc;
 
 // Generate ERC20 contract bindings
 abigen!(
@@ -39,14 +39,11 @@ impl BlockchainClient {
         Ok(Self { provider })
     }
     
-    pub async fn get_chain_id(&self) -> Result<u64> {
-        let chain_id = self.provider.get_chainid().await?;
-        Ok(chain_id.as_u64())
-    }
+    // We're removing the get_chain_id method as it's no longer used
     
     pub async fn get_token_data(&self, token_address: &str) -> Result<TokenData> {
         let address = Address::from_str(token_address)?;
-        let client = Arc::new(self.provider.clone());  // Wrap in Arc
+        let client = Arc::new(self.provider.clone());
         let contract = ERC20Contract::new(address, client);
         
         // Call contract methods to get token data
@@ -63,7 +60,7 @@ impl BlockchainClient {
             total_supply,
         })
     }
-
+    
     pub async fn get_token_balance(&self, token_address: &str, wallet_address: &str) -> Result<U256> {
         let token_address = Address::from_str(token_address)?;
         let wallet_address = Address::from_str(wallet_address)?;
@@ -82,12 +79,7 @@ mod tests {
     
     const OP_TOKEN_ADDRESS: &str = "0x4200000000000000000000000000000000000042";
     
-    #[tokio::test]
-    async fn test_connect_to_optimism() {
-        let client = BlockchainClient::new("https://optimism.drpc.org").unwrap();
-        let chain_id = client.get_chain_id().await.unwrap();
-        assert_eq!(chain_id, 10);
-    }
+    // Remove the test for get_chain_id since we removed the method
     
     #[tokio::test]
     async fn test_get_op_token_data() {
@@ -99,14 +91,16 @@ mod tests {
         assert_eq!(token_data.decimals, 18);
         assert!(token_data.total_supply > U256::zero());
     }
-
+    
     #[tokio::test]
-        async fn test_get_token_balance() {
-            let client = BlockchainClient::new("https://optimism.drpc.org").unwrap();
-            
-            let wallet = "0x2A82Ae142b2e62Cb7D10b55E323ACB1Cab663a26";
-            let balance = client.get_token_balance(OP_TOKEN_ADDRESS, wallet).await.unwrap();
-            
-            assert!(balance > U256::zero());
-        }
+    async fn test_get_token_balance() {
+        let client = BlockchainClient::new("https://optimism.drpc.org").unwrap();
+        
+        // Check balance of the Optimism Foundation Multisig wallet
+        let wallet = "0x2A82Ae142b2e62Cb7D10b55E323ACB1Cab663a26";
+        let balance = client.get_token_balance(OP_TOKEN_ADDRESS, wallet).await.unwrap();
+        
+        // Just verify we can retrieve a balance (should be greater than 0)
+        assert!(balance > U256::zero());
+    }
 }
