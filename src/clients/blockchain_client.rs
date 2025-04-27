@@ -2,7 +2,31 @@ use anyhow::Result;
 use ethers::{
     prelude::*,
     providers::{Http, Provider},
+    core::types::{Address, U256},
+    contract::abigen,
 };
+use std::str::FromStr;
+
+// Generate ERC20 contract bindings
+abigen!(
+    ERC20Contract,
+    r#"[
+        function name() external view returns (string)
+        function symbol() external view returns (string)
+        function decimals() external view returns (uint8)
+        function totalSupply() external view returns (uint256)
+        function balanceOf(address account) external view returns (uint256)
+    ]"#,
+);
+
+#[derive(Debug, Clone)]
+pub struct TokenData {
+    pub address: Address,
+    pub name: String,
+    pub symbol: String,
+    pub decimals: u8,
+    pub total_supply: U256,
+}
 
 pub struct BlockchainClient {
     provider: Provider<Http>,
@@ -18,19 +42,49 @@ impl BlockchainClient {
         let chain_id = self.provider.get_chainid().await?;
         Ok(chain_id.as_u64())
     }
+    
+    pub async fn get_token_data(&self, token_address: &str) -> Result<TokenData> {
+        let address = Address::from_str(token_address)?;
+        let client = self.provider.clone();
+        let contract = ERC20Contract::new(address, client);
+        
+        // Call contract methods to get token data
+        let name = contract.name().call().await?;
+        let symbol = contract.symbol().call().await?;
+        let decimals = contract.decimals().call().await?;
+        let total_supply = contract.total_supply().call().await?;
+        
+        Ok(TokenData {
+            address,
+            name,
+            symbol,
+            decimals,
+            total_supply,
+        })
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     
+    const OP_TOKEN_ADDRESS: &str = "0x4200000000000000000000000000000000000042";
+    
     #[tokio::test]
     async fn test_connect_to_optimism() {
-        // Try a different public endpoint that doesn't require authentication
         let client = BlockchainClient::new("https://optimism.drpc.org").unwrap();
         let chain_id = client.get_chain_id().await.unwrap();
-        
-        // Optimism mainnet chain ID is 10
         assert_eq!(chain_id, 10);
+    }
+    
+    #[tokio::test]
+    async fn test_get_op_token_data() {
+        let client = BlockchainClient::new("https://optimism.drpc.org").unwrap();
+        let token_data = client.get_token_data(OP_TOKEN_ADDRESS).await.unwrap();
+        
+        assert_eq!(token_data.name, "Optimism");
+        assert_eq!(token_data.symbol, "OP");
+        assert_eq!(token_data.decimals, 18);
+        assert!(token_data.total_supply > U256::zero());
     }
 }
