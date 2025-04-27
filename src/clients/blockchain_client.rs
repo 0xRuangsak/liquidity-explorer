@@ -63,6 +63,17 @@ impl BlockchainClient {
             total_supply,
         })
     }
+
+    pub async fn get_token_balance(&self, token_address: &str, wallet_address: &str) -> Result<U256> {
+        let token_address = Address::from_str(token_address)?;
+        let wallet_address = Address::from_str(wallet_address)?;
+        
+        let client = Arc::new(self.provider.clone());
+        let contract = ERC20Contract::new(token_address, client);
+        
+        let balance = contract.balance_of(wallet_address).call().await?;
+        Ok(balance)
+    }
 }
 
 #[cfg(test)]
@@ -88,4 +99,14 @@ mod tests {
         assert_eq!(token_data.decimals, 18);
         assert!(token_data.total_supply > U256::zero());
     }
+
+    #[tokio::test]
+        async fn test_get_token_balance() {
+            let client = BlockchainClient::new("https://optimism.drpc.org").unwrap();
+            
+            let wallet = "0x2A82Ae142b2e62Cb7D10b55E323ACB1Cab663a26";
+            let balance = client.get_token_balance(OP_TOKEN_ADDRESS, wallet).await.unwrap();
+            
+            assert!(balance > U256::zero());
+        }
 }

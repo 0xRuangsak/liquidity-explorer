@@ -22,5 +22,10 @@ async fn main() -> Result<()> {
     println!("Decimals: {}", token_data.decimals);
     println!("Total Supply: {}", token_data.total_supply);
     
+    // Check balance of a significant holder
+    let foundation_wallet = "0x2A82Ae142b2e62Cb7D10b55E323ACB1Cab663a26";
+    let balance = client.get_token_balance(OP_TOKEN_ADDRESS, foundation_wallet).await?;
+    println!("\nOP Balance of Optimism Foundation: {}", balance);
+    
     Ok(())
 }
