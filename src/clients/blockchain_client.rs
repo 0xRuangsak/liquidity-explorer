@@ -6,6 +6,7 @@ use ethers::{
     contract::abigen,
 };
 use std::str::FromStr;
+use std::sync::Arc;  // Add this import
 
 // Generate ERC20 contract bindings
 abigen!(
@@ -45,7 +46,7 @@ impl BlockchainClient {
     
     pub async fn get_token_data(&self, token_address: &str) -> Result<TokenData> {
         let address = Address::from_str(token_address)?;
-        let client = self.provider.clone();
+        let client = Arc::new(self.provider.clone());  // Wrap in Arc
         let contract = ERC20Contract::new(address, client);
         
         // Call contract methods to get token data
