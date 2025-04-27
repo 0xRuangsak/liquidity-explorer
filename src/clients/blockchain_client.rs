@@ -1,6 +1,5 @@
 use anyhow::Result;
 use ethers::{
-    prelude::*,
     providers::{Http, Provider},
     core::types::{Address, U256},
     contract::abigen,
