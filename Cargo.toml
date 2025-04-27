@@ -4,3 +4,9 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+# Ethereum interaction
+ethers = { version = "2.0", features = ["ws"] }
+# Async runtime
+tokio = { version = "1.32", features = ["full", "macros"] }
+# Error handling
+anyhow = "1.0"
