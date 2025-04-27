@@ -1,67 +1,83 @@
 mod clients;
+mod cli;
 
-use anyhow::{Result, Context};
+use anyhow::Result;
+use clap::Parser;
 use clients::blockchain_client::BlockchainClient;
-use std::thread;
-use std::time::Duration;
-
-const OP_TOKEN_ADDRESS: &str = "0x4200000000000000000000000000000000000042";
+use cli::{Cli, Command};
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    println!("Ethereum Liquidity Explorer");
+    // Parse command line arguments
+    let cli = Cli::parse();
     
-    // Try connecting with a short delay to avoid rate limiting
-    let client = BlockchainClient::new("https://optimism.drpc.org")
-        .context("Failed to create blockchain client")?;
+    // Create blockchain client
+    let client = BlockchainClient::new(&cli.rpc_url)?;
     
-    // Get chain ID with retry
-    let chain_id = match client.get_chain_id().await {
-        Ok(id) => id,
-        Err(e) => {
-            println!("Warning: Failed to get chain ID: {}", e);
-            println!("Using fallback value for Optimism Mainnet");
-            10 // Default Optimism chain ID
-        }
-    };
-    println!("Connected to blockchain with chain ID: {}", chain_id);
-    
-    // Small delay to avoid rate limiting
-    thread::sleep(Duration::from_millis(500));
-    
-    // Get token data with proper error handling
-    match client.get_token_data(OP_TOKEN_ADDRESS).await {
-        Ok(token_data) => {
-            println!("\nOP Token Data:");
+    // Process commands
+    match &cli.command {
+        Command::Info { address } => {
+            println!("Fetching info for token: {}", address);
+            
+            let token_data = client.get_token_data(address).await?;
+            
+            println!("\nToken Data:");
             println!("Address: {:?}", token_data.address);
             println!("Name: {}", token_data.name);
             println!("Symbol: {}", token_data.symbol);
             println!("Decimals: {}", token_data.decimals);
             println!("Total Supply: {}", token_data.total_supply);
         },
-        Err(e) => {
-            println!("Error retrieving token data: {}", e);
-            println!("Using hardcoded values for OP token");
-            println!("\nOP Token Data (hardcoded):");
-            println!("Name: Optimism");
-            println!("Symbol: OP");
-            println!("Decimals: 18");
-        }
-    }
-    
-    // Small delay to avoid rate limiting
-    thread::sleep(Duration::from_millis(500));
-    
-    // Check balance with proper error handling
-    let foundation_wallet = "0x2A82Ae142b2e62Cb7D10b55E323ACB1Cab663a26";
-    match client.get_token_balance(OP_TOKEN_ADDRESS, foundation_wallet).await {
-        Ok(balance) => {
-            println!("\nOP Balance of Optimism Foundation: {}", balance);
+        
+        Command::Balance { token, wallet } => {
+            println!("Checking balance of {} for token {}", wallet, token);
+            
+            let balance = client.get_token_balance(token, wallet).await?;
+            let token_data = client.get_token_data(token).await?;
+            
+            println!("\nBalance Information:");
+            println!("Token: {} ({})", token_data.name, token_data.symbol);
+            println!("Wallet: {}", wallet);
+            println!("Raw Balance: {}", balance);
+            
+            // Format the balance with proper decimals if possible
+            if let Some(formatted) = format_token_amount(balance, token_data.decimals) {
+                println!("Formatted Balance: {} {}", formatted, token_data.symbol);
+            }
         },
-        Err(e) => {
-            println!("Error retrieving wallet balance: {}", e);
-        }
     }
     
     Ok(())
+}
+
+// Helper function to format token amounts with proper decimal places
+fn format_token_amount(amount: ethers::types::U256, decimals: u8) -> Option<String> {
+    if decimals > 30 {
+        return None; // Avoid potential overflow
+    }
+    
+    let divisor = ethers::types::U256::from(10).pow(ethers::types::U256::from(decimals));
+    
+    if divisor.is_zero() {
+        return None;
+    }
+    
+    let whole_parts = amount / divisor;
+    let fractional_parts = amount % divisor;
+    
+    let whole_str = whole_parts.to_string();
+    let mut fractional_str = fractional_parts.to_string();
+    
+    // Pad with leading zeros if needed
+    while fractional_str.len() < decimals as usize {
+        fractional_str = format!("0{}", fractional_str);
+    }
+    
+    // Trim trailing zeros
+    let mut trimmed_fractional = fractional_str.trim_end_matches('0').to_string();
+    if trimmed_fractional.is_empty() {
+        return Some(whole_str);
+    }
+    
+    Some(format!("{}.{}", whole_str, trimmed_fractional))
 }

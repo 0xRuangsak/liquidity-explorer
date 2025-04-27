@@ -10,3 +10,5 @@ ethers = { version = "2.0", features = ["ws"] }
 tokio = { version = "1.32", features = ["full", "macros"] }
 # Error handling
 anyhow = "1.0"
+# CLI support
+clap = { version = "4.4", features = ["derive"] }
