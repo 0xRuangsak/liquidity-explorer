@@ -3,7 +3,6 @@ use ethers::{
     prelude::*,
     providers::{Http, Provider},
 };
-use std::sync::Arc;
 
 pub struct BlockchainClient {
     provider: Provider<Http>,
@@ -27,8 +26,8 @@ mod tests {
     
     #[tokio::test]
     async fn test_connect_to_optimism() {
-        // Use a public Optimism RPC endpoint
-        let client = BlockchainClient::new("https://rpc.ankr.com/optimism").unwrap();
+        // Try a different public endpoint that doesn't require authentication
+        let client = BlockchainClient::new("https://optimism.drpc.org").unwrap();
         let chain_id = client.get_chain_id().await.unwrap();
         
         // Optimism mainnet chain ID is 10
