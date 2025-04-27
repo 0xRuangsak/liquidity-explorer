@@ -74,7 +74,7 @@ fn format_token_amount(amount: ethers::types::U256, decimals: u8) -> Option<Stri
     }
     
     // Trim trailing zeros
-    let mut trimmed_fractional = fractional_str.trim_end_matches('0').to_string();
+    let trimmed_fractional = fractional_str.trim_end_matches('0').to_string();
     if trimmed_fractional.is_empty() {
         return Some(whole_str);
     }
